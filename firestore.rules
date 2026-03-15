@@ -1,0 +1,163 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Fields:
+    //   - uid: string (required) - Firebase Auth unique ID
+    //   - displayName: string (required) - User's full name
+    //   - email: string (required, email format) - User's email address
+    //   - photoURL: string (optional) - URL to user's profile picture
+    //   - bio: string (optional) - User's biography
+    //   - location: string (optional) - User's primary location
+    //   - role: string (required, enum: ['user', 'admin']) - User's role
+    //   - createdAt: timestamp (required) - Account creation timestamp
+    //
+    // Collection: products
+    // Fields:
+    //   - id: string (required) - Unique product ID
+    //   - name: string (required) - Product name
+    //   - price: number (required, positive) - Price in TZS
+    //   - category: string (required) - Product category
+    //   - image: string (required, url) - URL to product image
+    //   - sellerUid: string (required) - UID of the seller
+    //   - sellerName: string (required) - Name of the seller
+    //   - description: string (optional) - Detailed product description
+    //   - createdAt: timestamp (required) - Listing timestamp
+    //
+    // Collection: orders
+    // Fields:
+    //   - id: string (required) - Unique order ID
+    //   - buyerUid: string (required) - UID of the buyer
+    //   - sellerUid: string (required) - UID of the seller
+    //   - productId: string (required) - ID of the product purchased
+    //   - productName: string (required) - Name of the product
+    //   - status: string (required, enum: ["Inatayarishwa", "Njia", "Imefika"]) - Delivery status
+    //   - location: string (optional) - Current location of the item
+    //   - progress: number (optional, 0-100) - Delivery progress percentage
+    //   - eta: string (optional) - Estimated time of arrival
+    //   - createdAt: timestamp (required) - Order timestamp
+    //
+    // Collection: messages
+    // Fields:
+    //   - id: string (required) - Unique message ID
+    //   - senderUid: string (required) - UID of the sender
+    //   - receiverUid: string (required) - UID of the receiver
+    //   - text: string (required) - Message content
+    //   - createdAt: timestamp (required) - Message timestamp
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "shakilbomani391996@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasRequiredFields(['uid', 'displayName', 'email', 'role', 'createdAt']) &&
+             hasOnlyAllowedFields(['uid', 'displayName', 'email', 'photoURL', 'bio', 'location', 'role', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() < 100 &&
+             isValidEmail(data.email) &&
+             data.role in ['user', 'admin'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidProduct(data) {
+      return hasRequiredFields(['name', 'price', 'category', 'image', 'sellerUid', 'sellerName', 'createdAt']) &&
+             hasOnlyAllowedFields(['id', 'name', 'price', 'category', 'image', 'sellerUid', 'sellerName', 'description', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             data.price is number && data.price > 0 &&
+             data.category is string &&
+             isValidUrl(data.image) &&
+             data.sellerUid == request.auth.uid &&
+             data.sellerName is string &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidOrder(data) {
+      return hasRequiredFields(['buyerUid', 'sellerUid', 'productId', 'productName', 'status', 'createdAt']) &&
+             hasOnlyAllowedFields(['id', 'buyerUid', 'sellerUid', 'productId', 'productName', 'status', 'location', 'progress', 'eta', 'createdAt']) &&
+             data.buyerUid is string &&
+             data.sellerUid is string &&
+             data.productId is string &&
+             data.productName is string &&
+             data.status in ["Inatayarishwa", "Njia", "Imefika"] &&
+             (!('progress' in data) || (data.progress is number && data.progress >= 0 && data.progress <= 100)) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidMessage(data) {
+      return hasRequiredFields(['senderUid', 'receiverUid', 'text', 'createdAt']) &&
+             hasOnlyAllowedFields(['id', 'senderUid', 'receiverUid', 'text', 'createdAt']) &&
+             data.senderUid == request.auth.uid &&
+             data.receiverUid is string &&
+             data.text is string && data.text.size() > 0 && data.text.size() < 5000 &&
+             data.createdAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated(); // Allow reading profiles for chat/marketplace
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == 'user' || isAdmin());
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
+    }
+
+    match /products/{productId} {
+      allow read: if true; // Marketplace is public
+      allow create: if isAuthenticated() && isValidProduct(request.resource.data);
+      allow update: if isAuthenticated() && (isOwner(resource.data.sellerUid) || isAdmin()) && isValidProduct(request.resource.data);
+      allow delete: if isAuthenticated() && (isOwner(resource.data.sellerUid) || isAdmin());
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.buyerUid) || isOwner(resource.data.sellerUid) || isAdmin());
+      allow create: if isAuthenticated() && isValidOrder(request.resource.data) && isOwner(request.resource.data.buyerUid);
+      allow update: if isAuthenticated() && (isOwner(resource.data.buyerUid) || isOwner(resource.data.sellerUid) || isAdmin()) && isValidOrder(request.resource.data);
+    }
+
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.senderUid) || isOwner(resource.data.receiverUid) || isAdmin());
+      allow create: if isAuthenticated() && isValidMessage(request.resource.data);
+    }
+  }
+}

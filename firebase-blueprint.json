@@ -1,0 +1,74 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth unique ID" },
+        "displayName": { "type": "string", "description": "User's full name" },
+        "email": { "type": "string", "format": "email", "description": "User's email address" },
+        "photoURL": { "type": "string", "description": "URL to user's profile picture" },
+        "bio": { "type": "string", "description": "User's biography" },
+        "location": { "type": "string", "description": "User's primary location" },
+        "role": { "type": "string", "enum": ["user", "admin"], "description": "User's role in the system" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Account creation timestamp" }
+      },
+      "required": ["uid", "displayName", "email", "role"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Items listed in the marketplace",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique product ID" },
+        "name": { "type": "string", "description": "Product name" },
+        "price": { "type": "number", "description": "Price in TZS" },
+        "category": { "type": "string", "description": "Product category" },
+        "image": { "type": "string", "description": "URL to product image" },
+        "sellerUid": { "type": "string", "description": "UID of the seller" },
+        "sellerName": { "type": "string", "description": "Name of the seller" },
+        "description": { "type": "string", "description": "Detailed product description" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Listing timestamp" }
+      },
+      "required": ["name", "price", "category", "image", "sellerUid"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Orders for tracking 'Kuja Kwako' deliveries",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique order ID" },
+        "buyerUid": { "type": "string", "description": "UID of the buyer" },
+        "sellerUid": { "type": "string", "description": "UID of the seller" },
+        "productId": { "type": "string", "description": "ID of the product purchased" },
+        "productName": { "type": "string", "description": "Name of the product" },
+        "status": { "type": "string", "enum": ["Inatayarishwa", "Njia", "Imefika"], "description": "Delivery status" },
+        "location": { "type": "string", "description": "Current location of the item" },
+        "progress": { "type": "number", "description": "Delivery progress percentage" },
+        "eta": { "type": "string", "description": "Estimated time of arrival" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Order timestamp" }
+      },
+      "required": ["buyerUid", "sellerUid", "productId", "status"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Chat messages between users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique message ID" },
+        "senderUid": { "type": "string", "description": "UID of the sender" },
+        "receiverUid": { "type": "string", "description": "UID of the receiver" },
+        "text": { "type": "string", "description": "Message content" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Message timestamp" }
+      },
+      "required": ["senderUid", "receiverUid", "text"]
+    }
+  },
+  "firestore": {
+    "users": { "schema": "User", "description": "User profiles" },
+    "products": { "schema": "Product", "description": "Marketplace listings" },
+    "orders": { "schema": "Order", "description": "Delivery tracking" },
+    "messages": { "schema": "Message", "description": "Chat history" }
+  }
+}

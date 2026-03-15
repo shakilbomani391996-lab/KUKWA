@@ -1,0 +1,9 @@
+{
+  "name": "KUKWA",
+  "description": "Kutoka Kwangu Kuja Kwako - A direct-to-user platform for creators, sellers, and community exchange in East Africa.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera",
+    "microphone"
+  ]
+}
